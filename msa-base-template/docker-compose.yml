@@ -3,12 +3,15 @@
 # 핵심 스택만 실행:
 #   docker compose up -d --build
 #
-# Auth Server + API Gateway(사전 빌드 이미지)까지 포함해 실행:
-#   docker load -i infra-images.tar   # 이미지가 없다면 먼저 로드
+# Auth Server + API Gateway(사전 빌드 이미지)까지 포함:
+#   docker load -i infra-images.tar
 #   docker compose --profile infra up -d --build
 #
-# 개발용 기본값은 각 서비스 SecurityConfig 가 permitAll 이므로
-# Gateway/Auth 없이도 서비스 단독 호출이 가능하다.
+# 새 서비스를 추가하려면:
+#   1) ./new-service.sh <name> <package> <port>
+#   2) 아래 sample-service 블록을 복사해 새 서비스 블록을 추가
+#
+# 개발 기본값은 각 서비스 SecurityConfig 가 permitAll 이라 Gateway/Auth 없이도 동작한다.
 
 name: msa-base
 
@@ -84,15 +87,19 @@ services:
     networks:
       - msa-net
 
-  # ---------- Java 마이크로서비스 ----------
+  # ---------- 예시 서비스 (service-template 을 그대로 실행) ----------
+  # 새 서비스는 이 블록을 복사해서 build.context, container_name, SERVER_PORT,
+  # SPRING_APPLICATION_NAME, ports 만 바꾸면 된다.
 
-  user-service:
+  sample-service:
     build:
-      context: ./user-service
-    container_name: msa-user
+      context: ./service-template
+    container_name: msa-sample
     ports:
       - "8081:8081"
     environment:
+      - SERVER_PORT=8081
+      - SPRING_APPLICATION_NAME=sample-service
       - SPRING_DATASOURCE_URL=jdbc:mariadb://msa-db:3306/msa_db
       - SPRING_DATASOURCE_USERNAME=manager
       - SPRING_DATASOURCE_PASSWORD=SqlDba-1
@@ -108,106 +115,22 @@ services:
     networks:
       - msa-net
 
-  course-service:
-    build:
-      context: ./course-service
-    container_name: msa-course
-    ports:
-      - "8082:8082"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://msa-db:3306/msa_db
-      - SPRING_DATASOURCE_USERNAME=manager
-      - SPRING_DATASOURCE_PASSWORD=SqlDba-1
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - msa-net
+  # ---------- 예시 Python 서비스 (python-service-template) ----------
 
-  enrollment-service:
+  python-sample-service:
     build:
-      context: ./enrollment-service
-    container_name: msa-enrollment
-    ports:
-      - "8083:8083"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://msa-db:3306/msa_db
-      - SPRING_DATASOURCE_USERNAME=manager
-      - SPRING_DATASOURCE_PASSWORD=SqlDba-1
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - msa-net
-
-  payment-service:
-    build:
-      context: ./payment-service
-    container_name: msa-payment
-    ports:
-      - "8084:8084"
-    environment:
-      - SPRING_DATASOURCE_URL=jdbc:mariadb://msa-db:3306/msa_db
-      - SPRING_DATASOURCE_USERNAME=manager
-      - SPRING_DATASOURCE_PASSWORD=SqlDba-1
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      eureka-server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - msa-net
-
-  # ---------- Python 마이크로서비스 ----------
-
-  recommend-service:
-    build:
-      context: ./recommend-service
-    container_name: msa-recommend
+      context: ./python-service-template
+    container_name: msa-python-sample
     ports:
       - "8085:8085"
     environment:
+      - APP_NAME=python-sample-service
       - EUREKA_SERVER_URL=http://eureka-server:8761/eureka
-      - EUREKA_INSTANCE_HOST=recommend-service
-      - COURSE_SERVICE_URL=http://course-service:8082
+      - EUREKA_INSTANCE_HOST=python-sample-service
+      - TARGET_SERVICE_URL=http://sample-service:8081
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC_PAYMENT_COMPLETED=payment.completed
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
-    networks:
-      - msa-net
-
-  ai-screening-service:
-    build:
-      context: ./ai-screening-service
-    container_name: msa-ai-screening
-    ports:
-      - "8086:8086"
-    environment:
-      - EUREKA_SERVER_URL=http://eureka-server:8761/eureka
-      - EUREKA_INSTANCE_HOST=ai-screening-service
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-      - KAFKA_TOPIC_ORDER_CREATED=order.created
-      - KAFKA_TOPIC_SCREENING_COMPLETED=screening.completed
+      - KAFKA_TOPIC_INBOUND=sample.created
+      - KAFKA_TOPIC_OUTBOUND=python.processed
     depends_on:
       eureka-server:
         condition: service_healthy
@@ -228,7 +151,6 @@ services:
       - msa-net
 
   # ---------- 선택: Auth Server + API Gateway (사전 빌드 이미지, profile=infra) ----------
-  # infra-images.tar 를 load 한 뒤 --profile infra 로 실행할 때만 사용.
 
   auth-server:
     image: msa-lecture/auth-server:1.0
