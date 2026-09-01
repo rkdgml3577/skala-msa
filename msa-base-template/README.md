@@ -1,9 +1,8 @@
 # MSA Base Template
 
 새 백엔드 프로젝트를 빠르게 시작하기 위한 **재사용 가능한 MSA 뼈대**입니다.
-교수님이 주신 `msa-lecture` 인프라(Eureka + API Gateway + Auth Server + Kafka + MariaDB + Java/Python 서비스 + Vue)를 유지하되, **도메인 로직을 전부 걷어내고** "복사해서 이름만 바꿔 시작하는" 템플릿 형태로 정리했습니다.
+ 인프라(Eureka + API Gateway + Auth Server + Kafka + MariaDB + Java/Python 서비스 + Vue)를 유지하되, **도메인 로직을 전부 걷어내고** "복사해서 이름만 바꿔 시작하는" 템플릿 형태로 정리했습니다.
 
-> 원본 ShariahGuard(샤리아 종목 심사) 소스는 저장소 루트에 그대로 보존돼 있고, 이 템플릿은 `msa-base-template/` 아래 독립적으로 존재합니다.
 
 ---
 
